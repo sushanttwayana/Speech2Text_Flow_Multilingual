@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currency Exchange App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center">
+    <div class="w-full max-w-md bg-white shadow-lg rounded-xl overflow-hidden md:mt-8">
+        <!-- Top Bar -->
+        <div class="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+            <button class="text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <i class="fas fa-chevron-left text-lg"></i>
+            </button>
+            <h1 class="text-xl font-semibold text-gray-800">SGD</h1>
+            <div class="flex items-center space-x-3">
+                <button class="bg-green-100 text-green-700 px-4 py-2 rounded-full font-medium text-sm flex items-center justify-center shadow-sm hover:bg-green-200 transition-colors">
+                    <span>11</span>
+                </button>
+                <button class="text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-bell text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Balance Section -->
+        <div class="p-6">
+            <h2 class="text-gray-500 text-sm font-medium">Total Balance</h2>
+            <div class="flex items-center justify-between mt-1">
+                <p class="text-3xl font-bold text-gray-900">**** <span class="text-red-500 text-base ml-2">MYR</span></p>
+                <!-- Placeholder for the eye icon if needed -->
+            </div>
+            
+            <div id="status" class="status"></div>
+
+             <!-- New Input Field -->
+            <input
+                type="number"
+                id="top-up-input"
+                placeholder="Enter amount"
+                class="w-full mt-4 p-3 border border-gray-300 rounded-lg text-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+            >
+
+            <div class="flex space-x-4 mt-6">
+                <button class="flex-1 bg-red-600 text-white py-3 rounded-full font-semibold text-lg flex items-center justify-center shadow-lg hover:bg-red-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i> Buy
+                </button>
+                <button class="flex-1 bg-pink-100 text-red-600 py-3 rounded-full font-semibold text-lg flex items-center justify-center shadow-lg hover:bg-pink-200 transition-colors">
+                    <i class="fas fa-minus mr-2"></i> Sell
+                </button>
+            </div>
+        </div>
+
+        <!-- Exchange Rate Section -->
+        <div class="bg-white mx-4 p-4 rounded-xl shadow-md border border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-gray-700 text-base font-medium">We Sell</p>
+                <div class="relative">
+                    <select class="block appearance-none w-full bg-gray-50 border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded-full leading-tight focus:outline-none focus:bg-white focus:border-blue-500 text-sm">
+                        <option>Weekly</option>
+                        <option>Daily</option>
+                        <option>Monthly</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                </div>
+            </div>
+            <p class="text-2xl font-semibold text-gray-900 mb-4">1 SGD = 4.3577 MYR</p>
+            <div class="flex space-x-3 mb-6">
+                <button class="px-5 py-2 bg-green-500 text-white rounded-full text-sm font-medium shadow-sm hover:bg-green-600 transition-colors">Buy</button>
+                <button class="px-5 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium shadow-sm hover:bg-gray-300 transition-colors">Sell</button>
+            </div>
+
+            <!-- Graph Placeholder -->
+            <div class="h-40 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+                <div class="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-green-300 to-green-100 opacity-70"></div>
+                <div class="absolute inset-0 flex items-end justify-around text-xs text-gray-500 pb-2">
+                    <span>Mar</span>
+                    <span>Apr</span>
+                    <span>May</span>
+                    <span>Jun</span>
+                    <span>Jul</span>
+                    <span>Aug</span>
+                </div>
+                <!-- Simple triangle for the "May" dip -->
+                <div class="absolute bottom-0" style="left: 50%; transform: translateX(-50%) translateY(0%);">
+                    <div class="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-b-[30px] border-b-green-500 transform rotate-180 -translate-y-4"></div>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg">
+                <p><span class="font-semibold">Note:</span> Weekly rates are based on the average of the daily rates for the week.</p>
+            </div>
+        </div>
+
+        <!-- Bottom Section - Placeholder for images
+        <div class="p-6 flex space-x-4 overflow-x-auto pb-4">
+            <div class="min-w-[150px] h-32 bg-gray-200 rounded-lg flex-shrink-0 relative overflow-hidden">
+                <img src="https://placehold.co/300x200/cccccc/333333?text=Image+1" alt="Placeholder image 1" class="absolute inset-0 w-full h-full object-cover">
+            </div>
+            <div class="min-w-[150px] h-32 bg-gray-200 rounded-lg flex-shrink-0 relative overflow-hidden">
+                <img src="https://placehold.co/300x200/cccccc/333333?text=Image+2" alt="Placeholder image 2" class="absolute inset-0 w-full h-full object-cover">
+            </div>
+            <div class="min-w-[150px] h-32 bg-gray-200 rounded-lg flex-shrink-0 relative overflow-hidden">
+                <img src="https://placehold.co/300x200/cccccc/333333?text=Image+3" alt="Placeholder image 3" class="absolute inset-0 w-full h-full object-cover">
+            </div>
+        </div> -->
+
+        <!-- Bottom Navigation Bar -->
+        <div class="flex justify-around items-center p-4 border-t border-gray-200 bg-white">
+            <button class="flex flex-col items-center text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fas fa-home text-xl"></i>
+                <span class="text-xs mt-1">Home</span>
+            </button>
+            <button class="flex flex-col items-center text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fas fa-credit-card text-xl"></i>
+                <span class="text-xs mt-1">Cards</span>
+            </button>
+            <button class="flex flex-col items-center text-red-500">
+                <i class="fas fa-arrows-alt-h text-xl"></i>
+                <span class="text-xs mt-1">Exchange</span>
+            </button>
+            <button class="flex flex-col items-center text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fas fa-user-circle text-xl"></i>
+                <span class="text-xs mt-1">Profile</span>
+            </button>
+        </div>
+    </div>
+    
+<script>
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const amount = urlParams.get('amount');
+    // const name = urlParams.get('name'); 
+
+    const amountInput = document.getElementById('top-up-input');
+    if (amount) {
+        amountInput.value = amount;
+        updateStatus(`Amount MYR ${amount} prefilled${name ? ' for ' + name : ''}.`, 'success');
+        console.log('Prefilled amount:', amount);
+    } else {
+        updateStatus('No amount provided in URL.', 'error');
+        console.log('No amount in query params:', window.location.search);
+    }
+})();
+
+function updateStatus(message, type) {
+    const statusDiv = document.getElementById('status');
+    statusDiv.textContent = message;
+    statusDiv.className = `status ${type}`;
+}
+</script>
+
+
+</body>
+</html>

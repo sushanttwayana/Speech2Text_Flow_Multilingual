@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice + NLU Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: #ff4757;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3);
+        }
+
+        .record-button.recording {
+            background: #ff3742;
+            animation: pulse 1.5s infinite;
+        }
+
+        .record-button.recording::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 3px;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 71, 87, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status.idle {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        .status.recording {
+            background: #ffebee;
+            color: #d32f2f;
+            border: 2px solid #ffcdd2;
+        }
+
+        .status.processing {
+            background: #fff3e0;
+            color: #f57c00;
+            border: 2px solid #ffcc02;
+        }
+
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 2px solid #c8e6c9;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+            border: 2px solid #ffcdd2;
+        }
+
+        .results {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .transcription {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
+        }
+
+        .intent {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+
+        .entities {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+
+        .result-text {
+            font-size: 1.1em;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .confidence {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .connection-status.disconnected {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .models-status {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.9em;
+        }
+
+        .model-indicator {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+        }
+
+        .model-indicator.loaded {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .model-indicator.not-loaded {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+    
+    <div class="container">
+        <h1>🎤🧠 Voice + NLU Assistant</h1>
+        <p class="subtitle">Speak your command and get instant intent classification</p>
+        
+        <div class="models-status" id="modelsStatus">
+            <strong>Models:</strong>
+            <span class="model-indicator" id="whisperStatus">🎤 Whisper: Loading...</span>
+            <span class="model-indicator" id="rasaStatus">🧠 Rasa NLU: Loading...</span>
+        </div>
+        
+        <button class="record-button" id="recordButton">
+            <span id="recordText">Record</span>
+        </button>
+        
+        <div class="status idle" id="status">
+            Click the record button to start voice command
+        </div>
+        
+        <div class="results" id="results" style="display: none;">
+            <div class="result-section transcription">
+                <h3>📝 Transcription</h3>
+                <div class="result-text" id="transcriptionText"></div>
+                <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                    <span id="languageInfo"></span>
+                    <span id="timestampInfo"></span>
+                </div>
+            </div>
+            
+            <div class="result-section intent">
+                <h3>🎯 Intent Classification</h3>
+                <div class="result-text" id="intentText"></div>
+            </div>
+            
+            <div class="result-section entities" id="entitiesSection" style="display: none;">
+                <h3>🏷️ Entities</h3>
+                <div class="result-text" id="entitiesText"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VoiceNLUProcessor {
+            constructor() {
+                this.ws = null;
+                this.mediaRecorder = null;
+                this.audioStream = null;
+                this.isRecording = false;
+                this.isConnected = false;
+                this.isReady = false;
+                
+                this.recordButton = document.getElementById('recordButton');
+                this.recordText = document.getElementById('recordText');
+                this.status = document.getElementById('status');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.results = document.getElementById('results');
+                this.modelsStatus = document.getElementById('modelsStatus');
+                
+                // Disable button initially
+                this.recordButton.disabled = true;
+                this.recordButton.style.opacity = '0.5';
+                
+                this.initWebSocket();
+                this.setupEventListeners();
+            }
+            
+            initWebSocket() {
+                const wsUrl = `ws://localhost:8000/ws/voice-nlu`;
+                console.log('Connecting to:', wsUrl);
+                
+                this.ws = new WebSocket(wsUrl);
+                this.isConnected = false;
+                this.isReady = false;
+                
+                this.ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    this.isConnected = true;
+                    this.updateConnectionStatus(true);
+                    this.updateStatus('🔄 Loading models...', 'processing');
+                };
+                
+                this.ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(message);
+                };
+                
+                this.ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    this.isConnected = false;
+                    this.isReady = false;
+                    this.updateConnectionStatus(false);
+                    this.disableRecording();
+                    this.updateStatus('❌ Connection lost. Reconnecting...', 'error');
+                    setTimeout(() => this.initWebSocket(), 3000);
+                };
+                
+                this.ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    this.isConnected = false;
+                    this.isReady = false;
+                    this.updateConnectionStatus(false);
+                    this.disableRecording();
+                    this.updateStatus('❌ Connection failed. Retrying...', 'error');
+                };
+            }
+            
+            setupEventListeners() {
+                this.recordButton.addEventListener('click', () => {
+                    if (!this.isReady) {
+                        this.updateStatus('⚠️ Please wait for models to load...', 'error');
+                        return;
+                    }
+                    
+                    if (!this.isConnected) {
+                        this.updateStatus('❌ WebSocket not connected. Please wait...', 'error');
+                        return;
+                    }
+                    
+                    if (this.isRecording) {
+                        this.stopRecording();
+                    } else {
+                        this.startRecording();
+                    }
+                });
+            }
+            
+            updateConnectionStatus(connected) {
+                if (connected) {
+                    this.connectionStatus.textContent = 'Connected';
+                    this.connectionStatus.className = 'connection-status connected';
+                } else {
+                    this.connectionStatus.textContent = 'Disconnected';
+                    this.connectionStatus.className = 'connection-status disconnected';
+                }
+            }
+            
+            enableRecording() {
+                this.recordButton.disabled = false;
+                this.recordButton.style.opacity = '1';
+                this.isReady = true;
+            }
+            
+            disableRecording() {
+                this.recordButton.disabled = true;
+                this.recordButton.style.opacity = '0.5';
+                this.isReady = false;
+            }
+            
+            updateModelsStatus(models) {
+                const whisperStatus = document.getElementById('whisperStatus');
+                const rasaStatus = document.getElementById('rasaStatus');
+                
+                if (models.whisper) {
+                    whisperStatus.textContent = '🎤 Whisper: Ready';
+                    whisperStatus.className = 'model-indicator loaded';
+                } else {
+                    whisperStatus.textContent = '🎤 Whisper: Not Loaded';
+                    whisperStatus.className = 'model-indicator not-loaded';
+                }
+                
+                if (models.rasa_nlu) {
+                    rasaStatus.textContent = '🧠 Rasa NLU: Ready';
+                    rasaStatus.className = 'model-indicator loaded';
+                } else {
+                    rasaStatus.textContent = '🧠 Rasa NLU: Not Loaded';
+                    rasaStatus.className = 'model-indicator not-loaded';
+                }
+            }
+            
+            async startRecording() {
+                // Double-check WebSocket state
+                if (this.ws.readyState !== WebSocket.OPEN) {
+                    this.updateStatus('❌ WebSocket not ready. Please wait...', 'error');
+                    return;
+                }
+                
+                try {
+                    this.audioStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            sampleRate: 44100,
+                            channelCount: 1,
+                            echoCancellation: true,
+                            noiseSuppression: true
+                        } 
+                    });
+                    
+                    const options = {
+                        mimeType: 'audio/webm;codecs=opus',
+                        audioBitsPerSecond: 128000
+                    };
+                    
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        if (MediaRecorder.isTypeSupported('audio/webm')) {
+                            options.mimeType = 'audio/webm';
+                        }
+                    }
+                    
+                    this.mediaRecorder = new MediaRecorder(this.audioStream, options);
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0 && this.ws.readyState === WebSocket.OPEN) {
+                            this.sendAudioChunk(event.data);
+                        }
+                    };
+                    
+                    // Only send if WebSocket is open
+                    if (this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(JSON.stringify({ type: 'start_recording' }));
+                        this.mediaRecorder.start(1000);
+                        this.isRecording = true;
+                        
+                        this.recordButton.classList.add('recording');
+                        this.recordText.textContent = 'Stop';
+                        this.updateStatus('🎤 Recording... Speak your command!', 'recording');
+                        this.results.style.display = 'none';
+                    } else {
+                        throw new Error('WebSocket not ready');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    this.updateStatus('❌ Error: Could not start recording', 'error');
+                    
+                    // Clean up on error
+                    if (this.audioStream) {
+                        this.audioStream.getTracks().forEach(track => track.stop());
+                    }
+                }
+            }
+            
+            stopRecording() {
+                if (this.mediaRecorder && this.isRecording) {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    
+                    if (this.audioStream) {
+                        this.audioStream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    // Only send if WebSocket is open
+                    if (this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(JSON.stringify({ type: 'stop_recording' }));
+                    }
+                    
+                    this.recordButton.classList.remove('recording');
+                    this.recordText.textContent = 'Record';
+                    this.updateStatus('🔄 Processing...', 'processing');
+                }
+            }
+            
+            async sendAudioChunk(audioBlob) {
+                // Only send if WebSocket is open
+                if (this.ws.readyState !== WebSocket.OPEN) {
+                    console.warn('WebSocket not open, skipping audio chunk');
+                    return;
+                }
+                
+                try {
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    const base64Data = this.arrayBufferToBase64(arrayBuffer);
+                    
+                    this.ws.send(JSON.stringify({
+                        type: 'audio_chunk',
+                        data: base64Data
+                    }));
+                } catch (error) {
+                    console.error('Error sending audio chunk:', error);
+                }
+            }
+            
+            arrayBufferToBase64(buffer) {
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return btoa(binary);
+            }
+            
+            handleWebSocketMessage(message) {
+                console.log('Received message:', message);
+                
+                switch (message.type) {
+                    case 'connected':
+                        this.updateStatus('✅ Models loaded! Ready to record', 'success');
+                        this.enableRecording();
+                        if (message.models_loaded) {
+                            this.updateModelsStatus(message.models_loaded);
+                        }
+                        break;
+                        
+                    case 'recording_started':
+                        console.log('Recording started on server');
+                        break;
+                        
+                    case 'processing':
+                        this.updateStatus(message.message, 'processing');
+                        break;
+                        
+                    case 'processing_complete':
+                        this.displayResults(message);
+                        this.updateStatus('✅ Processing complete! Record again for another command', 'success');
+                        break;
+                        
+                    case 'error':
+                        this.updateStatus(`❌ ${message.message}`, 'error');
+                        console.error('Server error:', message);
+                        break;
+                        
+                    case 'pong':
+                        if (message.models_status) {
+                            this.updateModelsStatus({
+                                whisper: message.models_status.whisper === 'loaded',
+                                rasa_nlu: message.models_status.rasa_nlu === 'loaded'
+                            });
+                        }
+                        break;
+                }
+            }
+            
+            displayResults(data) {
+                const { transcription, nlu_result } = data;
+                
+                // Show transcription
+                document.getElementById('transcriptionText').textContent = transcription.text;
+                document.getElementById('languageInfo').textContent = `Language: ${transcription.language}`;
+                document.getElementById('timestampInfo').textContent = ` | ${new Date(transcription.timestamp).toLocaleTimeString()}`;
+                
+                // Show intent classification
+                if (nlu_result && nlu_result.action) {
+                    const confidence = nlu_result.confidence ? `<span class="confidence">${(nlu_result.confidence * 100).toFixed(1)}%</span>` : '';
+                    document.getElementById('intentText').innerHTML = `${nlu_result.action}${confidence}`;
+                    
+                    // Handle send_money action
+                    if (nlu_result.action === 'send_money') {
+                        this.handleSendMoneyAction(nlu_result.entities);
+                    }
+                } else {
+                    document.getElementById('intentText').textContent = 'No intent detected';
+                }
+                
+                // Show entities if available
+                const entitiesSection = document.getElementById('entitiesSection');
+                const entitiesText = document.getElementById('entitiesText');
+                
+                if (nlu_result && nlu_result.entities && nlu_result.entities.length > 0) {
+                    const entitiesHtml = nlu_result.entities.map(entity => 
+                        `<strong>${entity.entity}:</strong> ${entity.value} <span class="confidence">${(entity.confidence_entity * 100).toFixed(1)}%</span>`
+                    ).join('<br>');
+                    entitiesText.innerHTML = entitiesHtml;
+                    entitiesSection.style.display = 'block';
+                } else {
+                    entitiesSection.style.display = 'none';
+                }
+                
+                this.results.style.display = 'block';
+            }
+            
+            handleSendMoneyAction(entities) {
+                console.log('Handling send money action with entities:', entities);
+                
+                // Extract amount and receiver_name from entities
+                let amount = '';
+                let receiverName = '';
+                
+                if (entities) {
+                    entities.forEach(entity => {
+                        if (entity.entity === 'amount') {
+                            amount = entity.value;
+                        } else if (entity.entity === 'receiver_name') {
+                            receiverName = entity.value;
+                        }
+                    });
+                }
+                
+                // Build URL with query parameters
+                const params = new URLSearchParams();
+                if (amount) params.set('amount', amount);
+                if (receiverName) params.set('receiver', receiverName);
+                
+                const sendMoneyUrl = `http://localhost:8000/sendmoney?${params.toString()}`;
+                
+                // Show notification
+                this.updateStatus('💰 Opening send money form...', 'success');
+                
+                // Open new tab after a short delay
+                setTimeout(() => {
+                    window.open(sendMoneyUrl, '_blank');
+                    this.updateStatus('✅ Send money form opened in new tab', 'success');
+                }, 1000);
+            }
+            
+            updateStatus(message, type) {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            new VoiceNLUProcessor();
+        });
+    </script>
+</body>
+</html>

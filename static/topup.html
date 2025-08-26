@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Top-Up</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: #f0f0f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        :root {
+            --primary-red: #ff3b30;
+            --dark-grey: #4a4a4a;
+            --light-grey: #e9e9ee;
+            --border-grey: #ddd;
+            --bg-white: #ffffff;
+            --padding-main: 20px;
+            --border-radius: 12px;
+        }
+
+        .container {
+            background-color: var(--bg-white);
+            max-width: 420px;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 80px;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-grey);
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            color: var(--dark-grey);
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        main {
+            flex-grow: 1;
+            padding: var(--padding-main);
+        }
+
+        section {
+            background-color: var(--bg-white);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--dark-grey);
+        }
+
+        .top-up-amount {
+            padding: 20px;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-grey);
+            border-radius: var(--border-radius);
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+
+        .currency {
+            display: flex;
+            align-items: center;
+            padding-right: 10px;
+            border-right: 1px solid var(--border-grey);
+        }
+
+        .currency .flag-icon {
+            width: 20px;
+            margin-right: 8px;
+        }
+
+        .currency span {
+            font-weight: bold;
+        }
+
+        #top-up-input {
+            min-width: 50px;
+            width: auto;
+            margin-left: auto;
+            border: none;
+            outline: none;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: right;
+            color: var(--primary-red);
+            height: 100%;
+        }
+
+        .info-text p {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: var(--primary-red);
+        }
+
+        .quick-amounts {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .amount-btn {
+            flex: 1;
+            background-color: #f9f9f9;
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            padding: 12px 0;
+            margin: 0 5px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--dark-grey);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .amount-btn:first-child {
+            margin-left: 0;
+        }
+
+        .amount-btn:last-child {
+            margin-right: 0;
+        }
+
+        .amount-btn:hover {
+            background-color: var(--light-grey);
+        }
+
+        .bank-selection {
+            padding: 20px;
+        }
+
+        .bank-dropdown {
+            position: relative;
+        }
+
+        .select-bank-dropdown {
+            width: 100%;
+            background-color: var(--light-grey);
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            font-size: 16px;
+            color: var(--dark-grey);
+            font-weight: 500;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .bank-dropdown::after {
+            content: "\f054";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--dark-grey);
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 420px;
+            margin: 0 auto;
+            background-color: var(--bg-white);
+            padding: var(--padding-main);
+            border-top: 1px solid var(--border-grey);
+            text-align: center;
+        }
+
+        .terms-text {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 15px;
+        }
+
+        .terms-text a {
+            color: var(--primary-red);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .continue-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-red);
+            color: var(--bg-white);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .continue-btn:hover {
+            background-color: #d1322b;
+        }
+
+        .status {
+            font-size: 12px;
+            margin-top: 10px;
+            color: #999;
+        }
+
+        .status.success {
+            color: var(--primary-red);
+        }
+
+        .status.error {
+            color: #d1322b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="/static/index.html" class="back-btn"><i class="fas fa-chevron-left"></i></a>
+            <h2>Online Top-Up</h2>
+        </header>
+
+        <main>
+            <section class="top-up-amount">
+                <label for="top-up-input">Enter a Top-Up Amount</label>
+                <div class="input-container">
+                    <div class="currency">
+                        <img src="https://flagcdn.com/my.svg" alt="Malaysian Flag" class="flag-icon">
+                        <span>MYR</span>
+                    </div>
+                    <input type="number" id="top-up-input">
+                </div>
+                <div class="info-text">
+                    <p>Min top-up <span class="highlight">MYR 50.00</span></p>
+                    <p>Amount allowed to be Top-up is <span class="highlight">MYR 5,147.00</span></p>
+                </div>
+                <div class="status" id="status"></div>
+                <div class="quick-amounts">
+                    <button class="amount-btn" onclick="setAmount('100')">RM 100</button>
+                    <button class="amount-btn" onclick="setAmount('200')">RM 200</button>
+                    <button class="amount-btn" onclick="setAmount('300')">RM 300</button>
+                </div>
+            </section>
+
+            <section class="bank-selection">
+                <label for="bank-select">Choose an Online Bank Account</label>
+                <div class="bank-dropdown">
+                    <select id="bank-select" class="select-bank-dropdown">
+                        <option value="" disabled selected>Select Bank</option>
+                        <option value="sbi">SBI Bank</option>
+                        <option value="maybank">MayBank</option>
+                        <option value="nabil">Nabil Bank</option>
+                        <option value="CIMB">CIMB Bank</option>
+                    </select>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="terms-text">
+                By clicking on the Continue button, you hereby agree to <a href="#">FPX's Terms & Conditions</a>
+            </div>
+            <button class="continue-btn" id="continue-button">Continue</button>
+        </footer>
+    </div>
+
+<script>
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const amount = urlParams.get('amount');
+    // const name = urlParams.get('name'); // can be ignored for now
+
+    const amountInput = document.getElementById('top-up-input');
+    if (amount) {
+        amountInput.value = amount;
+        updateStatus(`Amount MYR ${amount} prefilled${name ? ' for ' + name : ''}.`, 'success');
+        console.log('Prefilled amount:', amount);
+    } else {
+        updateStatus('No amount provided in URL.', 'error');
+        console.log('No amount in query params:', window.location.search);
+    }
+})();
+
+function updateStatus(message, type) {
+    const statusDiv = document.getElementById('status');
+    statusDiv.textContent = message;
+    statusDiv.className = `status ${type}`;
+}
+</script>
+
+
+</body>
+</html>
