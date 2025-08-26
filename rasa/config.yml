@@ -1,0 +1,174 @@
+version: "3.1"
+recipe: default.v1
+language: en
+
+pipeline:
+  # TOKENIZATION - Enhanced for financial terms
+  - name: WhitespaceTokenizer
+  - name: RegexFeaturizer
+    case_sensitive: false  # Handle Malaysian mixed-case inputs
+  - name: LexicalSyntacticFeaturizer
+    features: [
+      ["low", "title", "upper"],
+      ["BOS", "EOS", "low", "upper", "title", "digit"],
+      ["low", "title", "upper"]
+    ]
+  
+  # FEATURIZATION - Optimized for financial domain
+  - name: CountVectorsFeaturizer
+    analyzer: "word"
+    min_ngram: 1
+    max_ngram: 3  # Reduced from 4 for better performance
+    max_features: 10000
+    OOV_token: "[UNK]"
+    use_lemma: true
+    token_pattern: r"(?u)\b\w\w+\b"  # Better word boundary detection
+  
+  # CHARACTER-LEVEL FEATURES - For handling typos and variations
+  - name: CountVectorsFeaturizer
+    analyzer: "char_wb"
+    min_ngram: 2  # Increased from 1 
+    max_ngram: 4
+    max_features: 5000
+    use_augmentation: true
+    augmentation_factor: 30  # Reduced from 50 for stability
+    
+  # WORD EMBEDDINGS - Add pre-trained embeddings for better understanding
+  - name: SpacyFeaturizer
+    model: "en_core_web_md"  # Medium model for better financial term understanding
+    pooling: "mean"
+    
+  # INTENT CLASSIFICATION & ENTITY EXTRACTION - Optimized
+  - name: DIETClassifier
+    epochs: 300  # Increased from 200 for financial precision
+    constrain_similarities: true
+    entity_recognition: true
+    intent_classification: true
+    use_masked_language_model: true
+    random_seed: 42
+    learning_rate: 0.001  # Reduced for more stable learning
+    
+    # DIET Architecture optimization
+    hidden_layers_sizes:
+      text: [512, 256]  # Better representation for financial terms
+      label: [128, 64]
+    number_of_transformer_layers: 2
+    transformer_size: 256
+    
+    # Regularization for better generalization
+    drop_rate: 0.1
+    drop_rate_dialogue: 0.1
+    drop_rate_label: 0.0
+    drop_rate_attention: 0.0
+    
+    # Loss scaling for financial precision
+    loss_type: "cross_entropy"
+    similarity_type: "inner"
+    evaluate_every_number_of_epochs: 20
+    evaluate_on_number_of_examples: 0
+    
+    # Entity extraction optimization
+    BILOU_flag: true  # Better entity boundary detection
+    entity_recognition: true
+    use_sparse_input_dropout: true
+    use_dense_input_dropout: true
+    
+  # ENTITY PROCESSING - Enhanced for financial entities
+  - name: EntitySynonymMapper
+  - name: DucklingEntityExtractor
+    url: http://localhost:8000
+    dimensions:
+      - amount-of-money  # Better than just 'amount' for currency handling
+      - number
+      - ordinal
+      - duration
+      - datetime
+    locale: "en_MY"  # Malaysian English locale
+    timezone: "Asia/Kuala_Lumpur"  # Malaysian timezone
+    
+  # RESPONSE SELECTION - Optimized
+  - name: ResponseSelector
+    epochs: 150  # Increased from 100
+    constrain_similarities: true
+    
+  # FALLBACK HANDLING - Fine-tuned for financial queries
+  - name: FallbackClassifier
+    threshold: 0.6  # Increased from 0.4 for financial precision
+    ambiguity_threshold: 0.05  # Reduced for clearer decisions
+
+# POLICIES - Optimized for financial conversation flow
+policies:
+  # MEMORIZATION - For exact financial command patterns
+  - name: MemoizationPolicy
+    max_history: 3  # Reduced for financial precision
+    
+  # RULE-BASED - Essential for financial compliance
+  - name: RulePolicy
+    core_fallback_threshold: 0.4
+    core_fallback_action_name: "action_default_fallback"
+    enable_fallback_prediction: true
+    
+  # MACHINE LEARNING POLICIES - Optimized
+  - name: UnexpecTEDIntentPolicy
+    max_history: 8  # Increased from 5 for better financial context
+    epochs: 200  # Increased from 100
+    
+    # Architecture optimization
+    hidden_layers_sizes: 
+      text: [256, 128]
+      label: [128, 64]
+    number_of_transformer_layers: 1
+    transformer_size: 256
+    
+    # Learning parameters
+    learning_rate: 0.001
+    batch_size: [64, 256]  # Dynamic batching
+    
+    # Regularization
+    drop_rate: 0.1
+    drop_rate_dialogue: 0.1
+    
+  - name: TEDPolicy
+    max_history: 8  # Increased from 5
+    epochs: 200  # Increased from 100
+    
+    # Enhanced architecture for financial flows
+    hidden_layers_sizes:
+      text: [256, 128]
+      label: [128, 64]
+      dialogue: [256, 128]
+    number_of_transformer_layers: 2
+    transformer_size: 256
+    
+    # Learning optimization
+    learning_rate: 0.001
+    batch_size: [64, 256]
+    
+    # Loss and similarity
+    loss_type: "cross_entropy"
+    similarity_type: "inner"
+    
+    # Regularization
+    drop_rate: 0.1
+    drop_rate_dialogue: 0.1
+    drop_rate_attention: 0.0
+    
+    # Evaluation
+    evaluate_every_number_of_epochs: 20
+    evaluate_on_number_of_examples: 0
+    
+    # Financial precision settings
+    constrain_similarities: true
+    model_confidence: "softmax"
+
+# ASSISTANT CONFIGURATION
+assistant_id: enhanced_financial_assistant
+
+# ADDITIONAL CONFIGURATIONS FOR FINANCIAL APP
+session_config:
+  session_expiration_time: 60  # 60 minutes for financial security
+  carry_over_slots_to_new_session: false  # Don't carry financial data
+
+# LOGGING AND DEBUGGING
+debug_plots: false  # Set to true during development
+debug_mode: false
