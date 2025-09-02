@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, List, Tuple
 from contextlib import asynccontextmanager
 import gc
+import time
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +40,7 @@ GET_SPEECH_TIMESTAMPS = None
 COLLECT_CHUNKS = None
 
 client_languages: Dict[str, str] = {}
+
 
 def setup_device():
     global DEVICE, COMPUTE_TYPE
@@ -70,6 +72,7 @@ def setup_device():
         COMPUTE_TYPE = "float32"
         return "cpu", "float32"
 
+
 def cleanup_cuda_memory():
     try:
         if torch.cuda.is_available():
@@ -79,6 +82,7 @@ def cleanup_cuda_memory():
             logger.info("CUDA memory cleaned up")
     except Exception as e:
         logger.warning(f"CUDA cleanup warning: {e}")
+
 
 class NLUProcessor:
     def __init__(self, agent: Agent):
@@ -133,6 +137,7 @@ class NLUProcessor:
 
         return {"action": "unknown", "message": "Classification failed.", "form_data": {}}
 
+
 def load_silero_vad():
     try:
         import torch.hub
@@ -155,6 +160,7 @@ def load_silero_vad():
     except Exception as e:
         logger.error(f"Error loading Silero VAD: {e}")
         return None, None
+
 
 def load_whisper_model_with_retry(model_dir: str, max_retries: int = 3):
     global ASR_MODEL, MODEL_LOADED, DEVICE, COMPUTE_TYPE
@@ -201,9 +207,8 @@ def load_whisper_model_with_retry(model_dir: str, max_retries: int = 3):
                 raise Exception("Failed to load Whisper model after retries")
     return False
 
-# -------------------- translation model laoded from local ----------------------
+
 def load_local_translation_models(models_dir: str):
-    # Install all available models in the directory
     for filename in os.listdir(models_dir):
         if filename.endswith(".argosmodel"):
             model_path = os.path.join(models_dir, filename)
@@ -213,15 +218,16 @@ def load_local_translation_models(models_dir: str):
                 logger.info(f"Installed {filename} successfully.")
             except Exception as e:
                 logger.error(f"Failed to install translation model {filename}: {e}")
-                
-                
-# ------------------ async function to do translation from source language to English----------------
+
+
 async def translate_to_english(text: str, source_lang_code: str) -> str:
     if not text.strip():
         return text
 
+    if source_lang_code == "en":
+        return text
+
     try:
-        # Get installed languages
         installed_languages = argostranslate.translate.get_installed_languages()
 
         from_lang = next((lang for lang in installed_languages if lang.code == source_lang_code), None)
@@ -255,18 +261,20 @@ async def transcribe_audio_faster_whisper(audio_np: np.ndarray, language: Option
         if DEVICE.type == 'cuda':
             torch.cuda.empty_cache()
 
+        # beam_size=1 for speed, VAD filtering aggressive via vad_filter=True
         segments, info = ASR_MODEL.transcribe(
             audio_np,
-            beam_size=5,
-            language=language,
+            beam_size=1,
+            language=language or "en",
+            # language=language or "en" or "hi" or "ms",
             condition_on_previous_text=False,
             vad_filter=True,
-            vad_parameters=dict(min_silence_duration_ms=300)
+            vad_parameters=dict(min_silence_duration_ms=200)  # higher threshold to reduce silence processing
         )
         transcript = " ".join(segment.text for segment in segments)
         detected_lang = info.language
 
-        logger.info(f"ASR detected language: {detected_lang} (prob: {info.language_probability:.2f})")
+        logger.debug(f"ASR detected language: {detected_lang} (prob: {info.language_probability:.2f})")
 
         if DEVICE.type == 'cuda':
             torch.cuda.empty_cache()
@@ -277,6 +285,7 @@ async def transcribe_audio_faster_whisper(audio_np: np.ndarray, language: Option
         logger.error(f"Error in transcription: {e}")
         cleanup_cuda_memory()
         return "", "en"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -316,7 +325,6 @@ async def lifespan(app: FastAPI):
             logger.info("Loading translation model from local path")
             LOCAL_TRANSLATION_MODEL_DIR = os.path.join(os.path.dirname(__file__), "translation_models")
             load_local_translation_models(LOCAL_TRANSLATION_MODEL_DIR)
-            # install_local_translation_models("translation_models")
             logger.info("✅ Argos Translate models loaded successfully.")
         except Exception as e:
             logger.error(f"⚠️ Failed to load translation models: {e}")
@@ -352,16 +360,16 @@ async def lifespan(app: FastAPI):
             else:
                 logger.error("❌ Failed to initialize Rasa NLUProcessor.")
 
-        logger.info("=" * 60)
+        logger.info("="*60)
         logger.info("🎉 APPLICATION INITIALIZATION COMPLETE")
-        logger.info("=" * 60)
+        logger.info("="*60)
         logger.info(f"📊 Status Summary:")
         logger.info(f"   • Device: {DEVICE} ({COMPUTE_TYPE})")
         logger.info(f"   • Whisper Model: {'✅ Loaded' if MODEL_LOADED else '❌ Failed'}")
         logger.info(f"   • VAD Model: {'✅ Loaded' if VAD_MODEL is not None else '❌ Failed'}")
         logger.info(f"   • Translation: {'✅ Available' if True else '❌ Unavailable'}")
         logger.info(f"   • Rasa NLU: {'✅ Loaded' if NLU_PROCESSOR is not None else '❌ Failed'}")
-        logger.info("=" * 60)
+        logger.info("="*60)
 
         yield
 
@@ -394,7 +402,6 @@ async def lifespan(app: FastAPI):
             logger.error(f"⚠️ Error during cleanup: {cleanup_error}")
         logger.info("👋 Application shutdown complete")
 
-# -- ConnectionManager, websocket endpoints & all your current code below remain unchanged --
 
 class ConnectionManager:
     def __init__(self):
@@ -443,6 +450,7 @@ class ConnectionManager:
                 logger.error(f"Error sending to {client_id}: {e}")
                 self.disconnect(client_id)
 
+
 manager = ConnectionManager()
 
 app = FastAPI(title="Speech-to-Text and Intent Classification API with Faster Whisper + Argos Translate", lifespan=lifespan)
@@ -458,35 +466,29 @@ app.add_middleware(
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8001)
 
-
-async def transcribe_segment(audio_np_segment: np.ndarray) -> Tuple[str, str]:
+async def transcribe_segment(audio_np_segment: np.ndarray, language: Optional[str] = None) -> Tuple[str, str]:
     if not MODEL_LOADED or ASR_MODEL is None:
         logger.error("Model not loaded, cannot transcribe.")
         return "", ""
 
     try:
-        # Apply VAD to filter silence if available
         if VAD_MODEL and GET_SPEECH_TIMESTAMPS and COLLECT_CHUNKS:
             try:
                 audio_torch = torch.from_numpy(audio_np_segment).float()
-                # Force VAD to run on CPU to avoid CUDA issues
                 if audio_torch.is_cuda:
                     audio_torch = audio_torch.cpu()
-                    
+
                 speech_timestamps = GET_SPEECH_TIMESTAMPS(
                     audio_torch,
                     VAD_MODEL,
                     sampling_rate=SAMPLE_RATE,
-                    threshold=0.3,
+                    threshold=0.4,
                     min_speech_duration_ms=100,
                     min_silence_duration_ms=100,
                     return_seconds=False
                 )
-                
+
                 if not speech_timestamps:
                     return "", ""
 
@@ -498,40 +500,39 @@ async def transcribe_segment(audio_np_segment: np.ndarray) -> Tuple[str, str]:
         else:
             filtered_audio_np = audio_np_segment
 
-        # Transcribe with Faster Whisper - auto-detect language
-        transcript, detected_lang = await transcribe_audio_faster_whisper(filtered_audio_np, None)
+        # Pass the language to faster whisper transcription
+        transcript, detected_lang = await transcribe_audio_faster_whisper(filtered_audio_np, language)
 
-        # Translate to English if needed
-        translated_transcript = await translate_to_english(transcript, detected_lang)
+        # Perform translation only if detected_lang is not English
+        if detected_lang != "en":
+            translated_transcript = await translate_to_english(transcript, detected_lang)
+        else:
+            translated_transcript = transcript
+
         return transcript, translated_transcript
-        
+
     except Exception as e:
         logger.exception(f"Error in transcribing segment: {e}")
         return "", ""
 
+
 async def process_audio_for_client(client_id: str, language: str):
-    CHUNK_SECONDS = 15
+    CHUNK_SECONDS = 5  # Reduced chunk size for quicker feedback
     CHUNK_SAMPLES = SAMPLE_RATE * CHUNK_SECONDS
     audio_buffer = np.array([], dtype=np.float32)
 
     while manager.is_recording.get(client_id, False):
         try:
-            await asyncio.sleep(0.2)
-            
-            # Process audio chunks
+            await asyncio.sleep(0.1)
+
             while manager.audio_buffers[client_id]:
-                try:
-                    new_chunk = manager.audio_buffers[client_id].pop(0)
-                    audio_buffer = np.concatenate([audio_buffer, new_chunk])
-                except Exception as e:
-                    logger.error(f"Error processing audio chunk: {e}")
-                    continue
-                    
-            # Process when buffer is large enough
+                new_chunk = manager.audio_buffers[client_id].pop(0)
+                audio_buffer = np.concatenate([audio_buffer, new_chunk])
+
             while len(audio_buffer) >= CHUNK_SAMPLES:
                 chunk = audio_buffer[:CHUNK_SAMPLES]
                 audio_buffer = audio_buffer[CHUNK_SAMPLES:]
-                
+
                 native_transcript, translated_transcript = await transcribe_segment(chunk)
                 if native_transcript:
                     await manager.send_personal_message(
@@ -540,7 +541,7 @@ async def process_audio_for_client(client_id: str, language: str):
                     )
                     manager.transcribed_segments[client_id].append(native_transcript)
                     manager.translated_segments[client_id].append(translated_transcript)
-                    
+
         except asyncio.CancelledError:
             logger.info(f"Interim task for {client_id} cancelled.")
             break
@@ -552,22 +553,21 @@ async def process_audio_for_client(client_id: str, language: str):
             )
             break
 
-    # Process remaining buffer
+    # Process any remaining audio buffer at stop
     if len(audio_buffer) > 0:
-        try:
-            native_transcript, translated_transcript = await transcribe_segment(audio_buffer)
-            if native_transcript:
-                await manager.send_personal_message(
-                    json.dumps({"type": "transcription", "text": native_transcript, "is_final": False}),
-                    client_id
-                )
-                manager.transcribed_segments[client_id].append(native_transcript)
-                manager.translated_segments[client_id].append(translated_transcript)
-        except Exception as e:
-            logger.exception(f"Error processing final chunk for {client_id}: {e}")
+        native_transcript, translated_transcript = await transcribe_segment(audio_buffer)
+        if native_transcript:
+            await manager.send_personal_message(
+                json.dumps({"type": "transcription", "text": native_transcript, "is_final": True}),
+                client_id
+            )
+            manager.transcribed_segments[client_id].append(native_transcript)
+            manager.translated_segments[client_id].append(translated_transcript)
+
 
 def merge_transcriptions(segments: List[str]) -> str:
     return ' '.join(segments).strip() if segments else ""
+
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -627,6 +627,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         pass
                     interim_task = None
 
+                start_final_time = time.perf_counter()
+
                 # Process any remaining audio in buffer
                 final_audio = np.array([], dtype=np.float32)
                 if manager.audio_buffers[client_id]:
@@ -639,8 +641,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
                 final_segments = manager.transcribed_segments.get(client_id, [])
                 translated_segments = manager.translated_segments.get(client_id, [])
+                lang = client_languages.get(client_id, "en")
+
                 if final_audio.size > 0:
-                    native_transcript, translated_transcript = await transcribe_segment(final_audio)
+                    native_transcript, translated_transcript = await transcribe_segment(final_audio, language=lang)
                     if native_transcript:
                         final_segments.append(native_transcript)
                         translated_segments.append(translated_transcript)
@@ -650,17 +654,19 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 translated_final_text = merge_transcriptions(translated_segments) or "No speech detected."
                 logger.info(f"Final transcription for {client_id}: {final_text}")
 
-                # Initialize result
                 result = {"action": "error", "message": "No transcription or Rasa processor not initialized.", "form_data": {}}
 
-                # Process with Rasa using translated text
                 if NLU_PROCESSOR and translated_final_text != "No speech detected.":
                     try:
+                        # Process Rasa classification asynchronously
                         result = await NLU_PROCESSOR.process_command(translated_final_text)
                         logger.info(f"Rasa result for {client_id}: {result}")
                     except Exception as e:
                         logger.exception(f"Rasa processing error for {client_id}: {e}")
                         result = {"action": "error", "message": f"Rasa processing failed: {str(e)}", "form_data": {}}
+
+                end_final_time = time.perf_counter()
+                logger.info(f"Final processing for client {client_id} took {end_final_time - start_final_time:.3f} seconds")
 
                 await manager.send_personal_message(
                     json.dumps({
@@ -672,7 +678,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     client_id
                 )
 
-                # Navigation logic
+                # Routing logic depending on intent action
                 if result.get("action") == "topup_wallet" and result.get("form_data", {}).get("amount"):
                     amount = result["form_data"]["amount"]
                     navigate_message = {
@@ -681,7 +687,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         "prefill": {"amount": amount}
                     }
                     await manager.send_personal_message(json.dumps(navigate_message), client_id)
-                     
+
                 elif result.get("action") == "multicurrency_wallet" and result.get("form_data", {}).get("amount"):
                     amount = result["form_data"]["amount"]
                     navigate_message = {
@@ -708,7 +714,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 try:
                     audio_bytes = base64.b64decode(data["audio"])
                     audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-                    logger.info(f"Received audio chunk for {client_id}, size: {len(audio_np)} samples")
+                    # Reduce log noise: don't log every chunk
+                    # You may log conditionally or aggregate logs instead.
                     manager.audio_buffers[client_id].append(audio_np)
                 except Exception as e:
                     logger.exception(f"Audio chunk processing error for {client_id}: {e}")
@@ -731,6 +738,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 pass
         manager.disconnect(client_id)
 
+
+
 @app.get("/topup.html", response_class=HTMLResponse)
 async def get_topup():
     try:
@@ -739,7 +748,7 @@ async def get_topup():
     except FileNotFoundError:
         logger.error("topup.html not found in static directory")
         return HTMLResponse(content="Error: topup.html not found", status_code=404)
-    
+
 @app.get("/multicurrency.html", response_class=HTMLResponse)
 async def get_multicurrency():
     try:
@@ -748,7 +757,7 @@ async def get_multicurrency():
     except FileNotFoundError:
         logger.error("multicurrency.html not found in static directory")
         return HTMLResponse(content="Error: multicurrency.html not found", status_code=404)
-    
+
 @app.get("/", response_class=HTMLResponse)
 async def get_root():
     try:
